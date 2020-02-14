@@ -1,20 +1,42 @@
+# Java Gradle CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-java/ for more details
+#
 version: 2
-
 jobs:
   build:
     docker:
-      - image: circleci/openjdk:11.0.3-jdk-stretch
+      # specify the version you desire here
+      - image: circleci/openjdk:8-jdk
+
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    working_directory: ~/repo
+
     environment:
+      # Customize the JVM maximum heap limit
+      JVM_OPTS: -Xmx3200m
       TERM: dumb
-      JAVA_TOOL_OPTIONS: "-Xmx1g"
-      GRADLE_OPTS: '-Dorg.gradle.parallel=false -Dorg.gradle.daemon=false'
-      CIRCLE_TEST_REPORTS: test-reports
+
     steps:
       - checkout
-      - run: if [ -e ./gradlew ]; then ./gradlew dependencies;else gradle dependencies;fi
-      - run: ./gradlew test
-      - run: mkdir -p $CIRCLE_TEST_REPORTS/junit/
-      - run: find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/ \;
-      - run:
-          name: Deploy Snapshot
-          command: ./publish
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+
+      - run: gradle dependencies
+
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: v1-dependencies-{{ checksum "build.gradle" }}
+
+      # run tests!
+      - run: gradle test
